@@ -12,11 +12,11 @@ module sa_cache_mem (
 
     cache_data_type mem [0:1024]; //1024 entries
 
+    assign data_read = mem [cache_index.index];
+
     always_ff @(posedge clk) begin
         if (cache_index.we)
             mem [cache_index.index] <= data_write;
-        else 
-            data_read <= mem [cache_index.index];
     end
 
 endmodule
