@@ -80,7 +80,7 @@ module sa_cache_controller (
             next_cache_to_cpu.data = data_read2;
 
         //memory request address
-        next_cache_to_mem.addr = cpu_to_cache.addr;
+        next_cache_to_mem.addr = next_cpu_to_cache.addr;
 
         //memory request data
         if (table_read1.LRU)
