@@ -39,6 +39,7 @@ package cache_definition;
 	typedef struct {
 		cache_data_type data;
 		bit ready;				//result is ready when the request read/write is a hit
+		bit stopped;
 	} cache_to_cpu_type;
 	
 	//----------------------------------------------------------------

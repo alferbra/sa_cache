@@ -10,13 +10,12 @@ module sa_cache_table (
 	output cache_table_type table_read);	//read port
 	
 	cache_table_type mem [0:1024];	//1024 entries (tag+valid+dirty)
+
+	assign table_read = mem [table_index.index];
 	
 	always_ff @(posedge clk) begin
-	
 		if (table_index.we)
-			mem [table_index.index] <= table_write;
-		else
-			table_read <= mem [table_index.index];
+			mem [table_index.index] <= table_write;		
 	end
 			
 endmodule

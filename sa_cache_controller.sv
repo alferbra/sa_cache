@@ -17,7 +17,7 @@ module sa_cache_controller (
     );
 
     //posible states
-	typedef enum { idle, compare_tag, allocate, write_back } cache_state_type;
+	typedef enum { compare_tag, allocate, write_back } cache_state_type;
 
     //state register
 	cache_state_type current_state, next_state;
@@ -40,9 +40,14 @@ module sa_cache_controller (
     //temporary variable for memory request (cache -> memory)
 	cache_to_mem_type next_cache_to_mem;
 
+    //variables for register (cpu -> cache)
+	cpu_to_cache_type next_cpu_to_cache;
+
     //connect to output ports
 	assign cache_to_mem = next_cache_to_mem;
 	assign cache_to_cpu.data = next_cache_to_cpu.data;
+    assign cache_to_cpu.ready = next_cache_to_cpu.ready;
+    assign cache_to_cpu.stopped = next_cache_to_cpu.stopped;
 
     always_comb begin
         
@@ -53,15 +58,15 @@ module sa_cache_controller (
 		next_state = current_state;
 
         //cache results by default
-        next_cache_to_cpu = '{0,0};
+        next_cache_to_cpu = '{0,0,0};
 
         //cache index by default
         data_index.we = '0;
-        data_index.index = cpu_to_cache.addr [9:0];
+        data_index.index = next_cpu_to_cache.addr [9:0];
 
         //table index by default
         table_index.we = '0;
-        table_index.index = cpu_to_cache.addr [9:0];
+        table_index.index = next_cpu_to_cache.addr [9:0];
 
         //Modify word
         data_write1 = data_read1;
@@ -70,13 +75,13 @@ module sa_cache_controller (
         table_write2 = table_read2;
 
         //Read word
-        if ((cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid)
+        if ((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid)
             next_cache_to_cpu.data = data_read1;
         else
             next_cache_to_cpu.data = data_read2;
 
         //memory request address
-        next_cache_to_mem.addr = cpu_to_cache.addr;
+        next_cache_to_mem.addr = next_cpu_to_cache.addr;
 
         //memory request data
         if (table_read1.LRU)
@@ -93,81 +98,82 @@ module sa_cache_controller (
 		//---------------------------------	Cache FSM	---------------------------------------
 		
         case (current_state)
-			
-			idle: begin
-				//If valid bit is set to 1, then there is a cpu opperation
-				if (cpu_to_cache.valid)
-					next_state = compare_tag;
-			end
 
             compare_tag: begin
-                //Cache hit
-                if (((cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) || ((cpu_to_cache.addr[19:10]==table_read2.tag) && table_read2.valid)) begin
-                    next_cache_to_cpu.ready = '1;
-                    table_index.we = '1;
-                    
-                    if ((cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) begin
-                        table_write1.LRU = '0;
-                        table_write2.LRU = '1;
-                    end
-                    else begin 
-                        table_write1.LRU = '1;
-                        table_write2.LRU = '0;
-                    end 
+                if (next_cpu_to_cache.valid && rst) begin
 
-                    //write hit
-                    if (cpu_to_cache.rw) begin
-
-                        data_index.we = '1;
-
-                        if ((cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) begin
-                            data_write1 = cpu_to_cache.data;
-                            table_write1.dirty = '1;
-                            table_write1.valid = '1;
+                    //Cache hit
+                    if (((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) || ((next_cpu_to_cache.addr[19:10]==table_read2.tag) && table_read2.valid)) begin
+                        
+                        if (!next_cpu_to_cache.rw)
+                            next_cache_to_cpu.ready = '1;
+                        
+                        table_index.we = '1;
+                        
+                        if ((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) begin
+                            table_write1.LRU = '0;
+                            table_write2.LRU = '1;
+                        end
+                        else begin 
+                            table_write1.LRU = '1;
+                            table_write2.LRU = '0;
                         end 
-                        else begin
-                            data_write2 = cpu_to_cache.data;
-                            table_write2.dirty = '1;
-                            table_write2.valid = '1;
+
+                        //write hit
+                        if (next_cpu_to_cache.rw) begin
+
+                            data_index.we = '1;
+
+                            if ((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) begin
+                                data_write1 = next_cpu_to_cache.data;
+                                table_write1.dirty = '1;
+                                table_write1.valid = '1;
+                            end 
+                            else begin
+                                data_write2 = next_cpu_to_cache.data;
+                                table_write2.dirty = '1;
+                                table_write2.valid = '1;
+                            end
                         end
                     end
-                    next_state = idle;
-                end
 
-                //cache miss
-                else if (!(((cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) || ((cpu_to_cache.addr[19:10]==table_read2.tag) && table_read2.valid))) begin
-                    table_index.we = '1;
-                    next_cache_to_mem.valid = '1;	//Generate a request to memory
-                    
-                    if (table_read1.LRU) begin
-                        table_write1.valid = '1;
-                        table_write1.tag = cpu_to_cache.addr [19:10];
-                        table_write1.dirty = cpu_to_cache.rw;    //Is dirty if it is a write
-                    end
-                    else begin
-                        table_write2.valid = '1;
-                        table_write2.tag = cpu_to_cache.addr [19:10];
-                        table_write2.dirty = cpu_to_cache.rw;    //Is dirty if it is a write
-                    end
+                    //cache miss
+                    else if (!(((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) || ((next_cpu_to_cache.addr[19:10]==table_read2.tag) && table_read2.valid))) begin
+                        next_cache_to_cpu.stopped = '1;
+                        table_index.we = '1;
+                        next_cache_to_mem.valid = '1;	//Generate a request to memory
+                        
+                        if (table_read1.LRU) begin
+                            table_write1.valid = '1;
+                            table_write1.tag = next_cpu_to_cache.addr [19:10];
+                            table_write1.dirty = next_cpu_to_cache.rw;    //Is dirty if it is a write
+                        end
+                        else begin
+                            table_write2.valid = '1;
+                            table_write2.tag = next_cpu_to_cache.addr [19:10];
+                            table_write2.dirty = next_cpu_to_cache.rw;    //Is dirty if it is a write
+                        end
 
-                    if (((table_read1.valid == '0 || table_read1.dirty == '0) && table_read1.LRU) || ((table_read2.valid == '0 || table_read2.dirty == '0) && table_read2.LRU) || (!table_read1.LRU && !table_read2.LRU))
-                        next_state = allocate;
-                    else begin
-                    //Miss with dirty bit  
-                        //Write-back address
-                        if (table_read1.LRU)
-                            next_cache_to_mem.addr = {table_read1.tag, cpu_to_cache.addr [9:0]};
-                        else
-                            next_cache_to_mem.addr = {table_read2.tag, cpu_to_cache.addr [9:0]};
-                       
-                        next_cache_to_mem.rw = '1;
+                        if (((table_read1.valid == '0 || table_read1.dirty == '0) && table_read1.LRU) || ((table_read2.valid == '0 || table_read2.dirty == '0) && table_read2.LRU) || (!table_read1.LRU && !table_read2.LRU))
+                            next_state = allocate;
+                        else begin
+                        //Miss with dirty bit  
+                            //Write-back address
+                            if (table_read1.LRU)
+                                next_cache_to_mem.addr = {table_read1.tag, next_cpu_to_cache.addr [9:0]};
+                            else
+                                next_cache_to_mem.addr = {table_read2.tag, next_cpu_to_cache.addr [9:0]};
+                        
+                            next_cache_to_mem.rw = '1;
 
-                        next_state = write_back;
+                            next_state = write_back;
+                        end
                     end
                 end
             end
 
             allocate: begin
+                next_cache_to_cpu.stopped = '1;
                 next_cache_to_mem.valid = '1;
 
                 //Memory is ready
@@ -184,8 +190,9 @@ module sa_cache_controller (
             end
 
             write_back: begin
-                next_cache_to_mem.rw = '1;
-				next_cache_to_mem.valid = '1;
+                next_cache_to_cpu.stopped = '1;
+                // next_cache_to_mem.rw = '1;
+				// next_cache_to_mem.valid = '1;
 
                 //Write-back is completed
 				if(mem_to_cache.ready) begin
@@ -201,12 +208,19 @@ module sa_cache_controller (
 
     always_ff @(posedge clk) begin
 		if(!rst) 
-			current_state <= idle;
+			current_state <= compare_tag;
 		
 		else
 			current_state <= next_state;
 
-		cache_to_cpu.ready <= next_cache_to_cpu.ready;
+		//cache_to_cpu.stopped <= next_cache_to_cpu.stopped;
+	end
+
+    always_ff @(posedge clk) begin
+		if (next_cache_to_cpu.stopped)
+			next_cpu_to_cache <= next_cpu_to_cache;
+		else
+			next_cpu_to_cache <= cpu_to_cache;
 	end
 
 

@@ -1,0 +1,11 @@
+1fffec0000
+1fffe80000
+1fffc00040
+1fffc40022
+1fffc80019
+1fffcc000c
+1fffd00016
+1fffd4000b
+1fffd8005a
+1fffdc0007
+0fffdcxxxx
