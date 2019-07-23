@@ -1,5 +1,7 @@
 //Controlador para RAM síncrona con escritura tipo byte
 
+import cache_definition::*;
+
 module ram32_controller (
     input clk, rst,
     input [31:0] data_r,
@@ -20,6 +22,13 @@ module ram32_controller (
     //temporary variable for SRAM memory results (SRAM -> cache)
     mem_to_cache_type next_mem_to_cache;
 
+    //register to keep the cache request
+    cache_to_mem_type hold_cache_to_mem;
+
+    assign mem_to_cache.data = next_mem_to_cache.data;
+    assign addr = (cache_to_mem.valid) ? cache_to_mem.addr : hold_cache_to_mem.addr;
+    assign data_w = (cache_to_mem.rw) ? cache_to_mem.data : hold_cache_to_mem.data;
+
     always_comb begin
         
         next_state = current_state;
@@ -27,8 +36,6 @@ module ram32_controller (
         next_mem_to_cache.ready = '0;
         next_mem_to_cache.data = data_r;
 
-        addr = cache_to_mem.addr;
-        data_w = cache_to_mem.data;
         BE = '0;
         WE = '0;
 
@@ -72,7 +79,8 @@ module ram32_controller (
         else
             current_state <= next_state;
 
-        mem_to_cache <= next_mem_to_cache;
+        mem_to_cache.ready <= next_mem_to_cache.ready;
+        hold_cache_to_mem <= cache_to_mem;
     end
 
 endmodule

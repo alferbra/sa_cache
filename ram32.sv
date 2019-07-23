@@ -5,11 +5,11 @@ module ram32 (
     input [19:0] addr,
     input [31:0] din,
     input [3:0] BE,     //Byte enable
-    output [31:0] dout
+    output bit [31:0] dout
     );
 
     //Memory
-    reg [3:0][7:0] mem [0:1048575];
+    reg [3:0][7:0] mem [0:2**20-1];
 
     always @(posedge clk) begin
         

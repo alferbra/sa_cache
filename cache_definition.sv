@@ -7,14 +7,14 @@
 package cache_definition;
 
 	//16-bit cache data
-	typedef bit [15:0] cache_data_type;
+	typedef bit [31:0] cache_data_type;
 
     //data structure for cache memory
     typedef struct packed {
         bit LRU;        //Least Recently Used bit
         bit valid;
         bit dirty;
-        bit [19:10] tag;
+        bit [19:12] tag;
         //cache_data_type data;
 	} cache_table_type;
 
