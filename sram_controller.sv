@@ -52,6 +52,7 @@ module sram_controller (
         next_state = current_state;
 
         next_mem_to_cache.ready = '0;
+        next_mem_to_cache.data = data;
         CE_N = '0;
         OE_N = '0;
         WE_N = '1;
@@ -86,7 +87,6 @@ module sram_controller (
             read: begin
                 if (count == 0) begin
                     next_mem_to_cache.ready = '1;
-                    next_mem_to_cache.data = data;
 
                     next_state = idle;
                 end
