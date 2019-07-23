@@ -47,6 +47,7 @@ module sa_cache_controller (
 	assign cache_to_mem = next_cache_to_mem;
 	assign cache_to_cpu.data = next_cache_to_cpu.data;
     assign cache_to_cpu.ready = next_cache_to_cpu.ready;
+    assign cache_to_cpu.stopped = next_cache_to_cpu.stopped;
 
     always_comb begin
         
@@ -99,7 +100,7 @@ module sa_cache_controller (
         case (current_state)
 
             compare_tag: begin
-                if (next_cpu_to_cache.valid) begin
+                if (next_cpu_to_cache.valid && rst) begin
 
                     //Cache hit
                     if (((next_cpu_to_cache.addr[19:10]==table_read1.tag) && table_read1.valid) || ((next_cpu_to_cache.addr[19:10]==table_read2.tag) && table_read2.valid)) begin
@@ -212,7 +213,7 @@ module sa_cache_controller (
 		else
 			current_state <= next_state;
 
-		cache_to_cpu.stopped <= next_cache_to_cpu.stopped;
+		//cache_to_cpu.stopped <= next_cache_to_cpu.stopped;
 	end
 
     always_ff @(posedge clk) begin
