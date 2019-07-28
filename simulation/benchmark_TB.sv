@@ -22,7 +22,7 @@ module benchmark_TB();
     bit [31:0] check_data_r;    //Read port of the asynchronous RAM
     bit [31:0] queue_data;      //Data push out of the queue
 
-    bit [31:0] queue [$];
+    logic [31:0] queue [$];
 
     assign cpu_to_cache.data = ROM_data[31:0];
     assign cpu_to_cache.addr = ROM_data[51:32];
@@ -52,13 +52,14 @@ module benchmark_TB();
 
         while (1) @(posedge clk) begin
             
-            if (ROM_data[64] == 0)  //read request from CPU
+            if (!cpu_to_cache.rw && !cache_to_cpu.stopped) begin    //read request from CPU
                 queue.push_front(check_data_r);
+            end
 
             if (cache_to_cpu.ready) begin
-                queue_data = queue.pop_back();
+               queue_data = queue.pop_back();
 
-                assert ( queue_data == cache_to_cpu.data) else
+                assert (queue_data == cache_to_cpu.data) else
                     $error("Lectura erronea. Dato correcto: %h | Dato leido: %h", queue_data, cache_to_cpu.data);
 
             end
@@ -94,7 +95,7 @@ module benchmark_TB();
         .dout (check_data_r)
     );
 
-    ROM_asynch ROM_asynch_inst (
+    ROM_asynch #(.INIT_FILE("../memory_access.txt")) ROM_asynch_inst (
         .address (ROM_addr),
         .dout (ROM_data)
     );

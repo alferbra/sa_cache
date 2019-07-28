@@ -16,6 +16,19 @@ module corner_cases_TB();
     bit [31:0] ram_data_r;
     bit [31:0] ram_data_w;
 
+    bit [9:0] ROM_addr;
+    bit [64:0] ROM_data;
+
+    bit [31:0] check_data_r;    //Read port of the asynchronous RAM
+    bit [31:0] queue_data;      //Data push out of the queue
+
+    logic [31:0] queue [$];
+
+    assign cpu_to_cache.data = ROM_data[31:0];
+    assign cpu_to_cache.addr = ROM_data[51:32];
+    assign cpu_to_cache.rw = ROM_data[64];
+    assign cpu_to_cache.valid = '1;
+
     initial begin	
 	    clk=1'b0;
 		forever #5 clk = ~clk;
@@ -25,186 +38,31 @@ module corner_cases_TB();
         rst = '0;
         #35
         rst = '1;
+
+        #10
+        while (1) begin
+            @(posedge clk)
+                if (!cache_to_cpu.stopped)
+                    ROM_addr = ROM_addr + 1'b1;
+        end
     end
-
-    // initial begin
-
-    //     always_comb begin
-
-    //         if (cache_to_cpu.ready)
-    //             $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-            
-    //     end
-    // end
 
     initial begin
 
-        #35
-        //------------------------------------------------------------------------
-        //--------------------------- Check write --------------------------------
-        @(posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000000000;
-        cpu_to_cache.data = 32'b00000000000000000000000000000000;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
+        while (1) @(posedge clk) begin
+            
+            if (!cpu_to_cache.rw && !cache_to_cpu.stopped) begin    //read request from CPU
+                queue.push_front(check_data_r);
+            end
 
-        @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000000100;
-        cpu_to_cache.data = 32'b00000000000000000000000000000100;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
+            if (cache_to_cpu.ready) begin
+               queue_data = queue.pop_back();
 
-        #40 @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000001000;
-        cpu_to_cache.data = 32'b00000000000000000000000000001000;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
+                assert (queue_data == cache_to_cpu.data) else
+                    $error("Lectura erronea. Dato correcto: %h | Dato leido: %h", queue_data, cache_to_cpu.data);
 
-        #40 @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000001100;
-        cpu_to_cache.data = 32'b00000000000000000000000000001100;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        #40 @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000000000;
-        cpu_to_cache.rw = '0;
-        cpu_to_cache.valid = '1;
-
-        // #40 @ (posedge clk)
-        // cpu_to_cache.addr = 20'b00000000000000000000;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-
-        #40 @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000000100;
-        cpu_to_cache.rw = '0;
-        cpu_to_cache.valid = '1;
-
-        @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000001000;
-        cpu_to_cache.rw = '0;
-        cpu_to_cache.valid = '1;
-
-        @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000001100;
-        cpu_to_cache.rw = '0;
-        cpu_to_cache.valid = '1;
-
-        @ (posedge clk)
-        cpu_to_cache.addr = 20'b10000000000000001100;
-        cpu_to_cache.data = 32'b00000000000010000000000000001100;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        @ (posedge clk)
-        cpu_to_cache.addr = 20'b11000000000000001100;
-        cpu_to_cache.data = 32'b00000000000011000000000000001100;
-        cpu_to_cache.rw = '1;
-        cpu_to_cache.valid = '1;
-        $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        #40 @ (posedge clk)
-        cpu_to_cache.addr = 20'b00000000000000001100;
-        cpu_to_cache.rw = '0;
-        cpu_to_cache.valid = '1;
-
-        // //------------------------------------------------------------------------
-        // //---------------------------- Check read --------------------------------
-        // @ (posedge cache_to_cpu.ready)
-        // cpu_to_cache.addr = 20'b00000000000000000000;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-
-        // @ (posedge cache_to_cpu.ready)
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // #8
-        // cpu_to_cache.addr = 20'b00000000000000000001;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-        // @ (posedge cache_to_cpu.ready)
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // //------------------------------------------------------------------------
-        // //-------------------- Check write-back and allocate----------------------
-        // cpu_to_cache.addr = 20'b10000000000000000000;
-        // cpu_to_cache.rw = '1;
-        // cpu_to_cache.valid = '1;
-        // cpu_to_cache.data = 16'b0000000000000011;
-        // $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        // @ (posedge cache_to_cpu.ready)
-        // cpu_to_cache.addr = 20'b10000000000000000001;
-        // cpu_to_cache.data = 16'b0000000000000100;
-        // cpu_to_cache.rw = '1;
-        // cpu_to_cache.valid = '1;
-        // $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        // @ (posedge cache_to_cpu.ready)
-        // cpu_to_cache.addr = 20'b11000000000000000000;
-        // cpu_to_cache.data = 16'b0000000000000101;
-        // cpu_to_cache.rw = '1;
-        // cpu_to_cache.valid = '1;
-        // $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        // @ (posedge cache_to_cpu.ready)
-        // cpu_to_cache.addr = 20'b11000000000000000001;
-        // cpu_to_cache.data = 16'b0000000000000110;
-        // cpu_to_cache.rw = '1;
-        // cpu_to_cache.valid = '1;
-        // $display("Escribiendo %h en la posicion %h", cpu_to_cache.data, cpu_to_cache.addr);
-
-        // @ (posedge cache_to_cpu.ready)
-        // cpu_to_cache.addr = 20'b00000000000000000000;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // cpu_to_cache.addr = 20'b00000000000000000001;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // cpu_to_cache.addr = 20'b10000000000000000000;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // cpu_to_cache.addr = 20'b10000000000000000001;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // cpu_to_cache.addr = 20'b11000000000000000000;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-
-        // cpu_to_cache.addr = 20'b11000000000000000001;
-        // cpu_to_cache.rw = '0;
-        // cpu_to_cache.valid = '1;
-        // @ (posedge cache_to_cpu.ready)
-        // #1
-        // $display("Leyendo %h de la posicion %h", cache_to_cpu.data, cpu_to_cache.addr);
-        
+            end
+        end
     end
 
     sa_cache sa_cache_inst (
@@ -226,6 +84,19 @@ module corner_cases_TB();
         .din (ram_data_w),
         .BE (BE),
         .dout (ram_data_r)
+    );
+
+    RAM_asynch RAM_asynch_inst (
+        .WE (ROM_data[64]),
+        .addr (ROM_data[51:32]),
+        .din (ROM_data[31:0]),
+        .BE (4'b1111),
+        .dout (check_data_r)
+    );
+
+    ROM_asynch #(.INIT_FILE("../corner_cases.txt")) ROM_asynch_inst (
+        .address (ROM_addr),
+        .dout (ROM_data)
     );
 
 endmodule
