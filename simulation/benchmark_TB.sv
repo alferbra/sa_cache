@@ -5,10 +5,19 @@ import cache_definition::*;
 
 module benchmark_TB();
 
+    parameter total_access = 559;
+
+    integer read_cycles = 0;
+    integer write_cycles = 0;
+    integer reads = 0;
+    integer writes = 0;
+    integer miss_read = 0;
+    integer miss_write = 0;
+
 	bit rst, clk;
 
     cache_to_cpu_type cache_to_cpu;
-	cpu_to_cache_type cpu_to_cache;
+	cpu_to_cache_type cpu_to_cache, next_cpu_to_cache;
 
     bit WE;
     bit [3:0] BE;
@@ -27,7 +36,6 @@ module benchmark_TB();
     assign cpu_to_cache.data = ROM_data[31:0];
     assign cpu_to_cache.addr = ROM_data[51:32];
     assign cpu_to_cache.rw = ROM_data[64];
-    assign cpu_to_cache.valid = '1;
 
     initial begin	
 	    clk=1'b0;
@@ -39,12 +47,47 @@ module benchmark_TB();
         ROM_addr = '0;
         #35
         rst = '1;
+        cpu_to_cache.valid = '1;
 
-        #10
         while (1) begin
             @(posedge clk)
-                if (!cache_to_cpu.stopped)
+                if (!cache_to_cpu.stopped) begin
                     ROM_addr = ROM_addr + 1'b1;
+
+                    if(ROM_data[64] == 1'b0)
+                        reads = reads + 1;
+                    else
+                        writes = writes + 1;
+
+                    if (ROM_addr == total_access) begin
+                        $display("Total accesos: %d", total_access);
+                        $display("Total lecturas: %d | Total escrituras: %d", reads, writes);
+                        $display("Misses lectura: %d | Misses escritura: %d", miss_read, miss_write);
+                        $display("Ciclos espera lectura: %d | Ciclos espera escritura: %d", read_cycles, write_cycles);
+                    end
+                end
+        end
+    end
+
+    initial begin
+        while (1) @(posedge clk) begin
+
+            if(cache_to_cpu.stopped) begin
+                if(!next_cpu_to_cache.rw)
+                    read_cycles = read_cycles + 1;
+                else
+                    write_cycles = write_cycles + 1;
+            end
+        end
+    end
+
+    initial begin
+        while (1) @(posedge cache_to_cpu.stopped) begin  
+
+            if(!next_cpu_to_cache.rw) 
+                miss_read = miss_read + 1;
+            else
+                miss_write = miss_write + 1;
         end
     end
 
@@ -63,6 +106,16 @@ module benchmark_TB();
                     $error("Lectura erronea. Dato correcto: %h | Dato leido: %h", queue_data, cache_to_cpu.data);
 
             end
+        end
+    end
+
+    initial begin
+
+        while (1) @(posedge clk) begin
+            if(cache_to_cpu.stopped)
+                next_cpu_to_cache <= next_cpu_to_cache;
+            else
+                next_cpu_to_cache <= cpu_to_cache;
         end
     end
 

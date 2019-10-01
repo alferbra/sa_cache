@@ -27,7 +27,6 @@ module corner_cases_TB();
     assign cpu_to_cache.data = ROM_data[31:0];
     assign cpu_to_cache.addr = ROM_data[51:32];
     assign cpu_to_cache.rw = ROM_data[64];
-    assign cpu_to_cache.valid = '1;
 
     initial begin	
 	    clk=1'b0;
@@ -38,8 +37,8 @@ module corner_cases_TB();
         rst = '0;
         #35
         rst = '1;
+        cpu_to_cache.valid = '1;
 
-        #10
         while (1) begin
             @(posedge clk)
                 if (!cache_to_cpu.stopped)
@@ -52,11 +51,11 @@ module corner_cases_TB();
         while (1) @(posedge clk) begin
             
             if (!cpu_to_cache.rw && !cache_to_cpu.stopped) begin    //read request from CPU
-                queue.push_front(check_data_r);
+                queue.push_front(check_data_r);     //push data from the RAM into the queue
             end
 
-            if (cache_to_cpu.ready) begin
-               queue_data = queue.pop_back();
+            if (cache_to_cpu.ready) begin           //read completed
+               queue_data = queue.pop_back();  
 
                 assert (queue_data == cache_to_cpu.data) else
                     $error("Lectura erronea. Dato correcto: %h | Dato leido: %h", queue_data, cache_to_cpu.data);

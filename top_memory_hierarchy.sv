@@ -3,13 +3,13 @@ import cache_definition::*;
 module sa_cache (
     input bit clk,
     input bit rst,
-    input bit [31:0] ram_data_r,
+    input cache_data_type ram_data_r,
     input cpu_to_cache_type cpu_to_cache,
     output cache_to_cpu_type cache_to_cpu,
     output bit WE,
     output bit [3:0] BE,
     output bit [19:0] ram_addr,
-    output bit [31:0] ram_data_w
+    output cache_data_type ram_data_w
 );
 
     //Cache <-> Memory controller signals
