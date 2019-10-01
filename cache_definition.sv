@@ -1,6 +1,6 @@
 //---------------------------------------------------------------------------------------------------
 
-// Package definition for a 16KB set-associative cache memory connected to a 1M x 16 secondary memory
+// Package definition for a 8KiB set-associative cache memory connected to a 1M x 32 secondary memory
 
 //---------------------------------------------------------------------------------------------------
 

@@ -1,3 +1,6 @@
+// Test Bench que ejecuta una sserie de accesos a memoria para comprobar 
+// el funcionamiento de la cache
+
 `timescale 1ns/1ps
 
 `include "../cache_definition.sv"

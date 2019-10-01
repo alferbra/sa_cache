@@ -1,3 +1,5 @@
+// ROM asincrona de 1K x 64
+
 module ROM_asynch (address, dout);
 
 	parameter INIT_FILE = "../memory_access.txt";

@@ -1,3 +1,6 @@
+// Test Bench para medir el rendiiento mediante un benchmark realizado a
+// partir de los acceosos a memoria de un programa Buble Sort
+
 `timescale 1ns/1ps
 
 `include "../cache_definition.sv"
